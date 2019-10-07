@@ -27,14 +27,13 @@ class RAAN(nn.Module):
             nn.Tanh())
 
     def forward(self, input):
-        input = input.view(-1, self.num_features, self.input_size)
         if self.attention:
             att_list = []
             for i in range(0, self.num_filters):
                 att_list.append(self.att_net[i](input))
             all_atts = torch.stack(att_list, 2)
         else:
-            all_atts = torch.ones((input.size(0),self.num_features, self.num_filters, 1)).cuda() * (1.0/self.num_features)
+            all_atts = torch.ones((input.size(0),self.num_features, self.num_filters, 1)) * (1.0/self.num_features)
         #att = torch.mean(all_atts, 2)
         outputs = []
         for i in range(0, self.num_filters):

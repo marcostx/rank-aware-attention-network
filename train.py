@@ -28,9 +28,9 @@ def main():
         num_attention_branches = 1
         models = {'att': None}
     for k in models.keys():
-        models[k] = RAAN(args.num_samples, args.attention, args.num_filters).cuda()
+        models[k] = RAAN(args.num_samples, args.attention, args.num_filters)
     if args.disparity_loss or args.rank_aware_loss:
-        model_uniform = RAAN(args.num_samples, False, 1).cuda()
+        model_uniform = RAAN(args.num_samples, False, 1)
 
     train_loader = torch.utils.data.DataLoader(
         SkillDataSet(args.root_path, args.train_list, ftr_tmpl='{}_{}.npz'),
@@ -46,7 +46,7 @@ def main():
         num_workers=args.workers,
         pin_memory=True)
 
-    criterion = torch.nn.MarginRankingLoss(margin=args.m1).cuda()
+    criterion = torch.nn.MarginRankingLoss(margin=args.m1)
 
     if args.disparity_loss or args.rank_aware_loss:
         attention_params = []
@@ -83,7 +83,7 @@ def main():
                 checkpoint_dict['state_dict_' + k] = models[k].state_dict(),
             if args.disparity_loss or args.rank_aware_loss:
                 checkpoint_dict['state_dict_uniform'] = model_uniform.state_dict(),
-            save_checkpoint(checkpoint_dict, is_best)
+            #save_checkpoint(checkpoint_dict, is_best)
     writer.close()
 
 def train(train_loader, models, criterion, optimizer, epoch, shuffle=True, phase=0):
@@ -160,13 +160,13 @@ def train_with_uniform(train_loader, models, model_uniform, criterion, optimizer
     for i, (input1, input2) in enumerate(train_loader):
         # measure data loading time
         av_meters['data_time'].update(time.time() - end)
-        input_var1 = torch.autograd.Variable(input1.cuda(), requires_grad=True)
-        input_var2 = torch.autograd.Variable(input2.cuda(), requires_grad=True)
+        input_var1 = torch.autograd.Variable(input1, requires_grad=True)
+        input_var2 = torch.autograd.Variable(input2, requires_grad=True)
         ## add small amount of gaussian noise to features for data augmentation
         if args.transform:
             input_var1, input_var2 = data_augmentation(input_var1, input_var2)
             
-        labels = torch.ones(input1.size(0)).cuda()
+        labels = torch.ones(input1.size(0))
         target  = torch.autograd.Variable(labels, requires_grad=False)
 
         all_output1, all_output2, output1, output2, att1, att2 = {}, {}, {}, {}, {}, {}
@@ -208,8 +208,8 @@ def train_with_uniform(train_loader, models, model_uniform, criterion, optimizer
             if args.diversity_loss:
                 all_losses += args.lambda_param*(div_loss_att1 + div_loss_att2)
         # measure accuracy and backprop
-        output1_all = torch.zeros(output1[list(models.keys())[0]].data.shape).cuda()
-        output2_all = torch.zeros(output2[list(models.keys())[0]].data.shape).cuda()
+        output1_all = torch.zeros(output1[list(models.keys())[0]].data.shape)
+        output2_all = torch.zeros(output2[list(models.keys())[0]].data.shape)
         for k in models.keys():
             output1_all += output1[k].data
             output2_all += output2[k].data
@@ -262,8 +262,8 @@ def validate(val_loader, models, criterion, epoch):
 
     end = time.time()
     for i, (input1, input2) in enumerate(val_loader):
-        input_var1 = torch.autograd.Variable(input1.cuda())
-        input_var2 = torch.autograd.Variable(input2.cuda())
+        input_var1 = torch.autograd.Variable(input1)
+        input_var2 = torch.autograd.Variable(input2)
 
         all_output1, all_output2, output1, output2, att1, att2 = {}, {}, {}, {}, {}, {}
         for k in models.keys():
@@ -272,7 +272,7 @@ def validate(val_loader, models, criterion, epoch):
             output1[k] = all_output1[k].mean(dim=1)
             output2[k] = all_output2[k].mean(dim=1)
 
-        labels = torch.ones(input1.size(0)).cuda()
+        labels = torch.ones(input1.size(0))
         target = torch.autograd.Variable(labels)
 
         ranking_loss = 0
@@ -288,8 +288,8 @@ def validate(val_loader, models, criterion, epoch):
         
         # measure accuracy
         # measure accuracy and backprop
-        output1_all = torch.zeros(output1[list(models.keys())[0]].data.shape).cuda()
-        output2_all = torch.zeros(output2[list(models.keys())[0]].data.shape).cuda()
+        output1_all = torch.zeros(output1[list(models.keys())[0]].data.shape)
+        output2_all = torch.zeros(output2[list(models.keys())[0]].data.shape)
         for k in models.keys():
             output1_all += output1[k].data
             output2_all += output2[k].data
@@ -352,15 +352,15 @@ def accuracy(output1, output2):
 def diversity_loss(attention):
     attention_t = torch.transpose(attention, 1, 2)
     num_features = attention.shape[1]
-    res = torch.matmul(attention_t.view(-1, args.num_filters, num_features), attention.view(-1, num_features, args.num_filters)) - torch.eye(args.num_filters).cuda()
+    res = torch.matmul(attention_t.view(-1, args.num_filters, num_features), attention.view(-1, num_features, args.num_filters)) - torch.eye(args.num_filters)
     res = res.view(-1, args.num_filters*args.num_filters)
     return torch.norm(res, p=2, dim=1).sum() / attention.size(0)
 
 def multi_rank_loss(input_a_1, input_a_2, input_b_1, input_b_2, target, margin):
     inter1, _ = torch.min((input_a_1 - input_a_2), dim=1)
     inter2 = (input_b_1 - input_b_2)
-    inter = -target * (inter1.view(-1) - inter2.view(-1)) + torch.ones(input_a_1.size(0)).cuda()*margin
-    losses = torch.max(torch.zeros(input_a_1.size(0)).cuda(), inter)
+    inter = -target * (inter1.view(-1) - inter2.view(-1)) + torch.ones(input_a_1.size(0))*margin
+    losses = torch.max(torch.zeros(input_a_1.size(0)), inter)
     return losses.sum()/input_a_1.size(0)
 
 def console_log_train(av_meters, epoch, iter, epoch_len):
@@ -398,7 +398,7 @@ def tensorboard_log_with_uniform(av_meters, mode, epoch):
 def data_augmentation(input_var1, input_var2):
     noise = torch.autograd.Variable(torch.normal(torch.zeros(input_var1.size()[1],
                                                              input_var1.size()[2]),
-                                                 0.01)).cuda()
+                                                 0.01))
     input_var1 = torch.add(input_var1, noise)
     input_var2 = torch.add(input_var2, noise)
     return input_var1, input_var2

@@ -1,0 +1,19 @@
+base: BEST
+
+task: origami
+acc: 0.6573 4h30 aprox
+
+task: tie_tie
+acc: 0.854 
+tempo gasto: 5h30 aprox
+
+task: braid_hair
+acc:  0.7265 5h30 aprox
+
+task: scrambled_eggs
+acc: 0.792
+tempo gasto: 3h50
+
+task: apply_eyeliner
+acc: Acc 0.838
+tempo gasto: 8h10
